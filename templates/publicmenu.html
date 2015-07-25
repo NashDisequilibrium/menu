@@ -24,7 +24,6 @@
 </br>
 <a href = '{{url_for('newMenuItem', restaurant_id = restaurant.id) }}'>Create New Item</a>
 </br>
-
 </br>
 <a href = '{{url_for('showRestaurants') }}'>Click here to go back to restaurants</a>
 </br>
@@ -41,9 +40,6 @@ ${{i.price}}
 </br>
 {{i.course}}
 </br>
-<a href = '{{url_for('editMenuItem', restaurant_id = restaurant.id, menu_id = i.id) }}'>Edit Item</a>
-</br>
-<a href = '{{url_for('deleteMenuItem', restaurant_id = restaurant.id, menu_id = i.id) }}'>Delete Item</a>
 </br>
 {% endfor %}
 

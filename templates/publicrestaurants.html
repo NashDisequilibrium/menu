@@ -1,0 +1,38 @@
+<html>
+<head>
+	<link rel=stylesheet type=text/css href="{{ url_for('static', filename='styles.css') }}">
+	</head>
+
+<body>
+
+
+<h1>The restaurants can be seen below! Bon appetit!</h1>
+<div class = 'pane'>
+<h3><a href = '{{url_for('newRestaurant')}}'>Click here to create new restaurant</a></h3>
+</br>
+<h3><a href = '{{url_for('showLogin')}}'>Click here to login</a></h3>
+</br>
+{% with messages = get_flashed_messages() %}
+{% if messages %}
+
+<ul>
+{% for message in messages %}
+  <li><strong>{{message}}</strong></li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% endwith %}
+</br></br>
+{% for r in restaurants:%}
+Restaurant ID: {{r.id}}
+</br>
+{{r.name}}
+</br>
+
+<a href = '{{url_for('showMenu', restaurant_id = r.id)}}'>View Menu for this restaurant</a>
+</br>
+{% endfor %}
+</div>
+
+
+</body>	

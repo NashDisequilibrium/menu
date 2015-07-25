@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, redirect, jsonify, url_for, flash
 from sqlalchemy import create_engine, asc
 from sqlalchemy.orm import sessionmaker
-from database_setup import Base, Restaurant, MenuItem
+from database_setup import Base, Restaurant, MenuItem, User
 from flask import session as login_session
 import random
 import string
@@ -20,7 +20,7 @@ APPLICATION_NAME = "Restaurant Menu Application"
 
 
 # Connect to Database and create database session
-engine = create_engine('sqlite:///restaurantmenu.db')
+engine = create_engine('sqlite:///restaurantmenuwithusers.db')
 Base.metadata.bind = engine
 
 DBSession = sessionmaker(bind=engine)
@@ -108,6 +108,12 @@ def gconnect():
     login_session['picture'] = data['picture']
     login_session['email'] = data['email']
 
+# see if user exists, if not then make a new one
+    user_id = getUserID(login_session['email'])
+    if not user_id:
+        user_id = createUser(login_session)
+    login_session['user_id'] = user_id
+
     output = ''
     output += '<h1>Welcome, '
     output += login_session['username']
@@ -118,6 +124,30 @@ def gconnect():
     flash("you are now logged in as %s" % login_session['username'])
     print "done!"
     return output
+
+# User Helper Functions
+
+
+def createUser(login_session):
+    newUser = User(name=login_session['username'], email=login_session[
+                   'email'], picture=login_session['picture'])
+    session.add(newUser)
+    session.commit()
+    user = session.query(User).filter_by(email=login_session['email']).one()
+    return user.id
+
+
+def getUserInfo(user_id):
+    user = session.query(User).filter_by(id=user_id).one()
+    return user
+
+
+def getUserID(email):
+    try:
+        user = session.query(User).filter_by(email=email).one()
+        return user.id
+    except:
+        return None
 
     # DISCONNECT - Revoke a current user's token and reset their login_session
 
@@ -155,122 +185,145 @@ def gdisconnect():
         return response
 
 
-#decorator functions
+#decorator functions, here we have all the main functions for the various pages of the website
+
 
 @app.route('/')
 @app.route('/restaurant')
 def showRestaurants():
-	restaurants = session.query(Restaurant).all()
-	return render_template('restaurants.html', restaurants = restaurants)
+    restaurants = session.query(Restaurant).all()
+    if 'username' not in login_session:
+        return render_template('publicrestaurants.html', restaurants=restaurants)
+    else:
+        return render_template('restaurants.html', restaurants=restaurants)        
 
 
 #To create a new restaurant they just enter the name and click confirm. They are then given a flash confirmation. 
 @app.route('/restaurant/new', methods = ['GET', 'POST'])
 def newRestaurant():
-	if 'username' not in login_session:
-		return redirect('/login')
-	if request.method == 'POST':
-		newRestaurant = Restaurant(name = request.form['name'])
-  		session.add(newRestaurant)
-  		session.commit()
-  		flash("New restaurant created, well done!")
-  		return redirect(url_for('showRestaurants'))
-  	else:
-  		return render_template('newrestaurant.html')
-  		
-	
+    if 'username' not in login_session:
+        return redirect('/login')
+    if request.method == 'POST':
+        newRestaurant = Restaurant(name = request.form['name'], user_id=login_session['user_id'])
+        session.add(newRestaurant)
+        session.commit()
+        flash("New restaurant created, well done!")
+        return redirect(url_for('showRestaurants'))
+    else:
+        return render_template('newRestaurant.html')
+        
+    
 #Edit restaurant then given confirmation, they can see a list of all the restaurants. 
 @app.route('/restaurant/<int:restaurant_id>/edit', methods = ['GET', 'POST'])
 def editRestaurant(restaurant_id):
-	restaurant = session.query(Restaurant).filter_by(id = restaurant_id).one()
-	if 'username' not in login_session:
-		return redirect('/login')
-	if request.method == 'POST':
-		if request.form['name']:
-			restaurant.name = request.form['name']
-		session.add(restaurant)
-		session.commit()
-		flash("The item was edited, good work!")
-		return redirect(url_for('showRestaurants', restaurant_id = restaurant_id))
-	else:
-		#USE THE RENDER_TEMPLATE FUNCTION BELOW TO SEE THE VARIABLES YOU SHOULD USE IN YOUR EDITMENUITEM TEMPLATE
-		return render_template('editRestaurant.html', restaurant_id = restaurant_id)
-	
-#when they have deleted a menu item they are then redirected to see the menu and given a flash confirmation. 
-@app.route('/restaurant/<int:restaurant_id>/delete', methods = ['GET', 'POST'])		
+    editedRestaurant = session.query(Restaurant).filter_by(id = restaurant_id).one()
+    if 'username' not in login_session:
+        return redirect('/login')
+    if editedRestaurant.user_id != login_session['user_id']:
+        return redirect(url_for('showRestaurants', restaurant_id = restaurant_id))
+    if request.method == 'POST':
+        if request.form['name']:
+            editedRestaurant.name = request.form['name']
+        session.add(editedRestaurant)
+        session.commit()
+        flash("The item was edited, good work!")
+        return redirect(url_for('showRestaurants', restaurant_id = restaurant_id))
+    else:
+        #USE THE RENDER_TEMPLATE FUNCTION BELOW TO SEE THE VARIABLES YOU SHOULD USE IN YOUR EDITMENUITEM TEMPLATE
+        return render_template('editRestaurant.html', restaurant_id = restaurant_id)
+    
+#Delete the restaurant. Note htey can only delete a restaurant which they created when logged in. 
+@app.route('/restaurant/<int:restaurant_id>/delete', methods = ['GET', 'POST'])     
 def deleteRestaurant(restaurant_id):
-	restaurantToDelete = session.query(Restaurant).filter_by(id = restaurant_id).one()
-	if 'username' not in login_session:
-		return redirect('/login') 
-	if request.method == 'POST':
-		session.delete(restaurantToDelete)
-		session.commit()
-		flash("The item was deleted, well done!")
-		return redirect(url_for('restaurantMenu', restaurant_id = restaurant_id))
-	else:
-		return render_template('deleteRestaurant.html', restaurant_id = restaurant_id, item = restaurantToDelete)
+    restaurantToDelete = session.query(Restaurant).filter_by(id = restaurant_id).one()
+    if 'username' not in login_session:
+        return redirect('/login')
+    if restaurantToDelete.user_id != login_session['user_id']:
+        return redirect(url_for('showRestaurants', restaurant_id = restaurant_id))         
+    if request.method == 'POST':
+        session.delete(restaurantToDelete)
+        flash("The item was deleted, well done!")
+        session.commit()
+        return redirect(url_for('showRestaurants', restaurant_id=restaurant_id))
+    else:
+        return render_template('deleteRestaurant.html', restaurant_id = restaurant_id, item = restaurantToDelete)
 
 #See the menu. There is nothing they can do on this page in terms of a POST function. 
-@app.route('/restaurant/<int:restaurant_id>')
-@app.route('/restaurant/<int:restaurant_id>/menu')			
+@app.route('/restaurant/<int:restaurant_id>/')
+@app.route('/restaurant/<int:restaurant_id>/menu/')
 def showMenu(restaurant_id):
-	restaurant = session.query(Restaurant).filter_by(id = restaurant_id).one()
-	items = session.query(MenuItem).filter_by(restaurant_id = restaurant_id)
-	return render_template('menu.html', restaurant_id = restaurant_id, restaurant = restaurant, items = items)
-	
-	
+    restaurant = session.query(Restaurant).filter_by(id=restaurant_id).one()
+    creator = getUserInfo(restaurant.user_id)
+    items = session.query(MenuItem).filter_by(
+        restaurant_id=restaurant_id).all()
+    if 'username' not in login_session or creator.id != login_session['user_id']:
+        return render_template('publicmenu.html', items=items, restaurant=restaurant, creator=creator)
+    else:
+        return render_template('menu.html', items=items, restaurant=restaurant, creator=creator)
+    
 
-#Person can create new restaurant. It will then redirect to show the menu for that restaurant. 
-@app.route('/restaurant/<int:restaurant_id>/new', methods = ['GET', 'POST'])
+# Create a new menu item
+@app.route('/restaurant/<int:restaurant_id>/menu/new/', methods=['GET', 'POST'])
 def newMenuItem(restaurant_id):
-	if 'username' not in login_session:
-		return redirect('/login')
-	if request.method == 'POST':
-		newItem = MenuItem(name = request.form['name'], description = request.form['description'], price = request.form['price'], course = request.form['course'],restaurant_id=restaurant_id)
-  		session.add(newItem)
-  		session.commit()
-  		flash("New menu item created, well done!")
-  		return redirect(url_for('showMenu', restaurant_id = restaurant_id))
-  	else:
-  		return render_template('newmenuitem.html',restaurant_id = restaurant_id)
+    if 'username' not in login_session:
+        return redirect('/login')
+    restaurant = session.query(Restaurant).filter_by(id=restaurant_id).one()
+    if login_session['user_id'] != restaurant.user_id:
+        return "<script>function myFunction() {alert('You are not authorized to add menu items to this restaurant. Please create your own restaurant in order to add items.');}</script><body onload='myFunction()''>"
+    if request.method == 'POST':
+        newItem = MenuItem(name=request.form['name'], description=request.form['description'], price=request.form[
+                           'price'], course=request.form['course'], restaurant_id=restaurant_id, user_id=restaurant.user_id)
+        session.add(newItem)
+        session.commit()
+        flash('Well done, you just successfully created new item: %s' % (newItem.name))
+        return redirect(url_for('showMenu', restaurant_id=restaurant_id))
+    else:
+        return render_template('newmenuitem.html', restaurant_id=restaurant_id)
+
   
 #Here the person can edit the specific menu item 
-@app.route('/restaurant/<int:restaurant_id>/menu/<int:menu_id>/edit', methods = ['GET', 'POST'])
+@app.route('/restaurant/<int:restaurant_id>/menu/<int:menu_id>/edit', methods=['GET', 'POST'])
 def editMenuItem(restaurant_id, menu_id):
-	editedItem = session.query(MenuItem).filter_by(id = menu_id).one()
-	if 'username' not in login_session:
-		return redirect('/login')
-	if request.method == 'POST':
-		if request.form['name']:
-			editedItem.name = request.form['name']
-		if request.form['description']:
-			editedItem.description = request.form['description']
-		if request.form['price']:
-			editedItem.price = request.form['price']
-		if request.form['course']:
-			editedItem.course = request.form['course']
-		session.add(editedItem)
-		session.commit()
-		flash("Menu item edited, well done!")
-		return redirect(url_for('showMenu', restaurant_id = restaurant_id))
-	else:
-		
-		return render_template('editmenuitem.html', restaurant_id = restaurant_id, menu_id = menu_id, item = editedItem)
+    if 'username' not in login_session:
+        return redirect('/login')
+    editedItem = session.query(MenuItem).filter_by(id=menu_id).one()
+    restaurant = session.query(Restaurant).filter_by(id=restaurant_id).one()
+    if login_session['user_id'] != restaurant.user_id:
+        return "<script>function myFunction() {alert('You are not authorized to edit menu items to this restaurant. Please create your own restaurant in order to edit items.');}</script><body onload='myFunction()''>"
+    if request.method == 'POST':
+        if request.form['name']:
+            editedItem.name = request.form['name']
+        if request.form['description']:
+            editedItem.description = request.form['description']
+        if request.form['price']:
+            editedItem.price = request.form['price']
+        if request.form['course']:
+            editedItem.course = request.form['course']
+        session.add(editedItem)
+        session.commit()
+        flash('Menu Item Successfully Edited!')
+        return redirect(url_for('showMenu', restaurant_id=restaurant_id))
+    else:
+        return render_template('editmenuitem.html', restaurant_id=restaurant_id, menu_id=menu_id, item=editedItem)
 
-@app.route('/restaurant/<int:restaurant_id>/menu/<int:menu_id>/delete', methods = ['GET', 'POST'])
+
+# Delete a menu item
+@app.route('/restaurant/<int:restaurant_id>/menu/<int:menu_id>/delete', methods=['GET', 'POST'])
 def deleteMenuItem(restaurant_id, menu_id):
-	itemToDelete = session.query(MenuItem).filter_by(id = menu_id).one() 
-	if 'username' not in login_session:
-		return redirect('/login')
-	if request.method == 'POST':
-		session.delete(itemToDelete)
-		session.commit()
-		flash("The item was deleted, well done!")
-		return redirect(url_for('showRestaurants'))
-	else:
-		
-		return render_template('deletemenuitem.html', restaurant_id = restaurant_id, menu_id = menu_id, item=itemToDelete)	
-#return render_template('deleteconfirmation.html', item = itemToDelete)
+    if 'username' not in login_session:
+        return redirect('/login')
+    restaurant = session.query(Restaurant).filter_by(id=restaurant_id).one()
+    itemToDelete = session.query(MenuItem).filter_by(id=menu_id).one()
+    if login_session['user_id'] != restaurant.user_id:
+        return "<script>function myFunction() {alert('You are not authorized to delete menu items to this restaurant. Please create your own restaurant in order to delete items.');}</script><body onload='myFunction()''>"
+    if request.method == 'POST':
+        session.delete(itemToDelete)
+        session.commit()
+        flash('Menu Item Successfully Deleted')
+        return redirect(url_for('showMenu', restaurant_id=restaurant_id))
+    else:
+        return render_template('deleteMenuItem.html', restaurant_id = restaurant_id, item=itemToDelete)
+
 
 #We added this serialize function to be able to send JSON objects in a serializable format
 @property
@@ -285,23 +338,23 @@ def serialize(self):
 #JSON gets the list of restaurants
 @app.route('/restaurant/JSON')
 def showRestaurantsJSON():
-	restaurants = session.query(Restaurant).all()
-	return jsonify(restaurants=[i.serialize for i in restaurants]) 
+    restaurants = session.query(Restaurant).all()
+    return jsonify(restaurants=[i.serialize for i in restaurants]) 
 
 #JSON gets the menu from a particular restaurant 
-@app.route('/restaurant/<int:restaurant_id>/menu/JSON')			
+@app.route('/restaurant/<int:restaurant_id>/menu/JSON')         
 def showMenuJSON(restaurant_id):
-	restaurant = session.query(Restaurant).filter_by(id = restaurant_id).one()
-	items = session.query(MenuItem).filter_by(restaurant_id = restaurant_id)
-	return jsonify(MenuItems=[i.serialize for i in items])
+    restaurant = session.query(Restaurant).filter_by(id = restaurant_id).one()
+    items = session.query(MenuItem).filter_by(restaurant_id = restaurant_id)
+    return jsonify(MenuItems=[i.serialize for i in items])
 
 @app.route('/restaurant/<int:restaurant_id>/menu/<int:menu_id>/JSON')
 def menuItemJSON(restaurant_id, menu_id):
     Menu_Item = session.query(MenuItem).filter_by(id = menu_id).one()
     return jsonify(Menu_Item = Menu_Item.serialize)
-	
+    
 
 if __name__ == '__main__':
-	app.secret_key = 'super_secret_key'
-	app.debug = True
-	app.run(host = '0.0.0.0', port = 5000)
+    app.secret_key = 'super_secret_key'
+    app.debug = True
+    app.run(host = '0.0.0.0', port = 5000)

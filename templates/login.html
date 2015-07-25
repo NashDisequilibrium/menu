@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-
+  <link rel=stylesheet type=text/css href="{{ url_for('static', filename='styles.css') }}">
   <!--LOAD PRE-REQUISITES FOR GOOGLE SIGN IN -->
    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js">
   </script>
@@ -15,7 +15,9 @@
 
 
 <body>  
-
+<div class = 'pane'>
+<h3>Please log in so that you can create, edit, or delete restaurants or menu items!</h3>
+<a href = '{{url_for('showRestaurants') }}'>Click here to go back to restaurants</a>
 
 <!-- GOOGLE PLUS SIGN IN-->
 
@@ -23,7 +25,7 @@
           <div id="signInButton">
           <span class="g-signin"
             data-scope="openid email"
-            data-clientid="13140951618-15nik769cellkubaqnjk5facdib2dh4d.apps.googleusercontent.com"
+            data-clientid="839536451512-q8m15q03m48svfa727uv0brglb41v942.apps.googleusercontent.com"
             data-redirecturi="postmessage"
             data-accesstype="offline"
             data-cookiepolicy="single_host_origin"
@@ -67,7 +69,7 @@ function signInCallback(authResult) {
 
 
 <!--END GOOGLE PLUS SIGN IN -->
-
+</div>
   </body>
 
   </html>
