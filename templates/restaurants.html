@@ -10,7 +10,12 @@
 <div class = 'pane'>
 <h3><a href = '{{url_for('newRestaurant')}}'>Click here to create new restaurant</a></h3>
 </br>
+{%if 'username' not in session %}
 <h3><a href = '{{url_for('showLogin')}}'>Click here to login</a></h3>
+</br>
+{% else %}
+<h3><a href = '{{url_for('gdisconnect')}}'>Click here to logout</a></h3>
+{% endif %}
 </br>
 {% with messages = get_flashed_messages() %}
 {% if messages %}

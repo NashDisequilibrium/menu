@@ -185,7 +185,7 @@ def gdisconnect():
         return response
 
 
-#decorator functions, here we have all the main functions for the various pages of the website
+# Decorator functions, here we have all the main functions for the various pages of the website
 
 
 @app.route('/')
@@ -198,7 +198,7 @@ def showRestaurants():
         return render_template('restaurants.html', restaurants=restaurants)        
 
 
-#To create a new restaurant they just enter the name and click confirm. They are then given a flash confirmation. 
+# To create a new restaurant they just enter the name and click confirm. They are then given a flash confirmation. 
 @app.route('/restaurant/new', methods = ['GET', 'POST'])
 def newRestaurant():
     if 'username' not in login_session:
@@ -213,7 +213,7 @@ def newRestaurant():
         return render_template('newRestaurant.html')
         
     
-#Edit restaurant then given confirmation, they can see a list of all the restaurants. 
+# Edit restaurant then given confirmation, they can see a list of all the restaurants. 
 @app.route('/restaurant/<int:restaurant_id>/edit', methods = ['GET', 'POST'])
 def editRestaurant(restaurant_id):
     editedRestaurant = session.query(Restaurant).filter_by(id = restaurant_id).one()
@@ -229,10 +229,10 @@ def editRestaurant(restaurant_id):
         flash("The item was edited, good work!")
         return redirect(url_for('showRestaurants', restaurant_id = restaurant_id))
     else:
-        #USE THE RENDER_TEMPLATE FUNCTION BELOW TO SEE THE VARIABLES YOU SHOULD USE IN YOUR EDITMENUITEM TEMPLATE
+        # USE THE RENDER_TEMPLATE FUNCTION BELOW TO SEE THE VARIABLES YOU SHOULD USE IN YOUR EDITMENUITEM TEMPLATE
         return render_template('editRestaurant.html', restaurant_id = restaurant_id)
     
-#Delete the restaurant. Note htey can only delete a restaurant which they created when logged in. 
+# Delete the restaurant. Note they can only delete a restaurant which they created when logged in. 
 @app.route('/restaurant/<int:restaurant_id>/delete', methods = ['GET', 'POST'])     
 def deleteRestaurant(restaurant_id):
     restaurantToDelete = session.query(Restaurant).filter_by(id = restaurant_id).one()
@@ -248,7 +248,7 @@ def deleteRestaurant(restaurant_id):
     else:
         return render_template('deleteRestaurant.html', restaurant_id = restaurant_id, item = restaurantToDelete)
 
-#See the menu. There is nothing they can do on this page in terms of a POST function. 
+# See the menu. There is nothing they can do on this page in terms of a POST function. 
 @app.route('/restaurant/<int:restaurant_id>/')
 @app.route('/restaurant/<int:restaurant_id>/menu/')
 def showMenu(restaurant_id):
@@ -281,7 +281,7 @@ def newMenuItem(restaurant_id):
         return render_template('newmenuitem.html', restaurant_id=restaurant_id)
 
   
-#Here the person can edit the specific menu item 
+# Here the person can edit the specific menu item 
 @app.route('/restaurant/<int:restaurant_id>/menu/<int:menu_id>/edit', methods=['GET', 'POST'])
 def editMenuItem(restaurant_id, menu_id):
     if 'username' not in login_session:
@@ -325,23 +325,13 @@ def deleteMenuItem(restaurant_id, menu_id):
         return render_template('deleteMenuItem.html', restaurant_id = restaurant_id, item=itemToDelete)
 
 
-#We added this serialize function to be able to send JSON objects in a serializable format
-@property
-def serialize(self):   
-    return {
-        'name'         : self.name,
-        'description'  : self.description,
-        'id'         : self.id,
-        'price'        : self.price,
-        'course'       : self.course,
-    }
-#JSON gets the list of restaurants
+# JSON gets the list of restaurants
 @app.route('/restaurant/JSON')
 def showRestaurantsJSON():
     restaurants = session.query(Restaurant).all()
     return jsonify(restaurants=[i.serialize for i in restaurants]) 
 
-#JSON gets the menu from a particular restaurant 
+# JSON gets the menu from a particular restaurant 
 @app.route('/restaurant/<int:restaurant_id>/menu/JSON')         
 def showMenuJSON(restaurant_id):
     restaurant = session.query(Restaurant).filter_by(id = restaurant_id).one()
